@@ -16,11 +16,10 @@ from email.message import EmailMessage
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any
 
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import COMPLIANCE_MAILBOX, DELEGATED_SCOPES, GMAIL_TOPIC
-from gcp_auth import delegated_credentials
+from gcp_auth import build_service, delegated_credentials
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ _TAG = re.compile(r"<[^>]+>")
 
 def _service():
     credentials = delegated_credentials(COMPLIANCE_MAILBOX, DELEGATED_SCOPES)
-    return build("gmail", "v1", credentials=credentials, cache_discovery=False)
+    return build_service("gmail", "v1", credentials)
 
 
 def start_watch() -> dict[str, Any]:

@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 
 import google.auth
+import google_auth_httplib2
+import httplib2
 import requests
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -39,6 +42,12 @@ _TOKEN_URL = "https://oauth2.googleapis.com/token"
 _JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 _SKEW_SECONDS = 120
 
+# httplib2, which the Google API client uses, has no per-request timeout.
+# It has to be set on the transport or a hung upstream hangs the handler until
+# Cloud Run times the request out - long enough to burn the Pub/Sub ack
+# deadline and trigger a redelivery.
+HTTP_TIMEOUT_SECONDS = int(os.environ.get("GOOGLE_HTTP_TIMEOUT_SECONDS", "30"))
+
 _lock = threading.Lock()
 _cache: dict[tuple[str, tuple[str, ...]], tuple[str, float]] = {}
 _iam_service = None
@@ -50,15 +59,18 @@ def default_credentials(scopes: list[str] | None = None):
     return credentials
 
 
+def build_service(name: str, version: str, credentials):
+    """A Google API client whose transport actually times out."""
+    authorized = google_auth_httplib2.AuthorizedHttp(
+        credentials, http=httplib2.Http(timeout=HTTP_TIMEOUT_SECONDS)
+    )
+    return build(name, version, http=authorized, cache_discovery=False)
+
+
 def _iam():
     global _iam_service
     if _iam_service is None:
-        _iam_service = build(
-            "iamcredentials",
-            "v1",
-            credentials=default_credentials(),
-            cache_discovery=False,
-        )
+        _iam_service = build_service("iamcredentials", "v1", default_credentials())
     return _iam_service
 
 

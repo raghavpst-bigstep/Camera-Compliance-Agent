@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import (
@@ -26,7 +25,7 @@ from config import (
     CHAT_EVENTS_TOPIC,
     EVENT_SUBSCRIPTION_TTL_HOURS,
 )
-from gcp_auth import default_credentials
+from gcp_auth import build_service, default_credentials
 
 log = logging.getLogger(__name__)
 
@@ -39,13 +38,11 @@ def _credentials():
 
 
 def _chat():
-    return build("chat", "v1", credentials=_credentials(), cache_discovery=False)
+    return build_service("chat", "v1", _credentials())
 
 
 def _events():
-    return build(
-        "workspaceevents", "v1", credentials=_credentials(), cache_discovery=False
-    )
+    return build_service("workspaceevents", "v1", _credentials())
 
 
 def _unique(emails: list[str]) -> list[str]:

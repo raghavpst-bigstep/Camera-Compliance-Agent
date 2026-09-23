@@ -11,10 +11,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from googleapiclient.discovery import build
-
 from config import AUDIT_SHEET_ID, AUDIT_SHEET_RANGE, SHEETS_SCOPE
-from gcp_auth import default_credentials
+from gcp_auth import build_service, default_credentials
 
 log = logging.getLogger(__name__)
 
@@ -41,11 +39,8 @@ _service = None
 def _sheets():
     global _service
     if _service is None:
-        _service = build(
-            "sheets",
-            "v4",
-            credentials=default_credentials(scopes=[SHEETS_SCOPE]),
-            cache_discovery=False,
+        _service = build_service(
+            "sheets", "v4", default_credentials(scopes=[SHEETS_SCOPE])
         )
     return _service
 

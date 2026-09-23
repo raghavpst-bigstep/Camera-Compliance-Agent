@@ -19,11 +19,18 @@ import time
 from typing import Any
 
 import google.auth
+import google_auth_httplib2
+import httplib2
 from googleapiclient.discovery import build
 
 log = logging.getLogger(__name__)
 
 SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly"
+
+# httplib2 has no per-request timeout, so it has to be set on the transport.
+# Without it a hung Sheets call hangs the whole invocation until Cloud Run
+# kills the request.
+HTTP_TIMEOUT_SECONDS = int(os.environ.get("GOOGLE_HTTP_TIMEOUT_SECONDS", "30"))
 
 _COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "employee_name": ("employee name", "employee", "name", "full name"),
@@ -71,8 +78,11 @@ class DirectoryCache:
     def _sheets(self):
         if self._service is None:
             credentials, _ = google.auth.default(scopes=[SHEETS_SCOPE])
+            authorized = google_auth_httplib2.AuthorizedHttp(
+                credentials, http=httplib2.Http(timeout=HTTP_TIMEOUT_SECONDS)
+            )
             self._service = build(
-                "sheets", "v4", credentials=credentials, cache_discovery=False
+                "sheets", "v4", http=authorized, cache_discovery=False
             )
         return self._service
 

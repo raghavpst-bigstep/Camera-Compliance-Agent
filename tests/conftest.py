@@ -49,6 +49,8 @@ _stub(
     Transaction=object,
     transactional=lambda fn: fn,
 )
+_stub("google_auth_httplib2", AuthorizedHttp=lambda *a, **k: None)
+_stub("httplib2", Http=lambda *a, **k: None)
 _stub("googleapiclient")
 _stub("googleapiclient.discovery", build=lambda *args, **kwargs: None)
 _stub("googleapiclient.errors", HttpError=type("HttpError", (Exception,), {}))
