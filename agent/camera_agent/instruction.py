@@ -54,6 +54,13 @@ Extract the following from the manager's email:
 - meeting date/time
 - issue (what the manager reported about the camera/video)
 
+Complete this extraction first, from the email text alone. It does not depend
+on the directory and it does not depend on whether anyone can be identified.
+Always return meeting, meeting_date and issue when the email states them, even
+when the directory is unreadable and even when you return CLARIFY. A report
+that loses the meeting date forces the manager to supply it again, and leaves
+the audit record incomplete.
+
 Call lookup_directory to verify the employee and resolve:
 - employee email
 - manager and manager email
@@ -62,10 +69,15 @@ Call lookup_directory to verify the employee and resolve:
 Do not rely on names or contact information written in the email when the
 directory can verify them. The directory value always wins.
 
-Resolve relative dates ("today", "yesterday", "this morning's standup")
-against received_at. Output all dates in ISO 8601 format (YYYY-MM-DD, or
-YYYY-MM-DDTHH:MM when a time is given). If the meeting date cannot be pinned
-to a specific date, treat it as missing.
+Resolve relative dates against received_at, which is when the report arrived.
+"today", "this morning", "this afternoon" and "our standup" all mean the date
+of received_at. "yesterday" means the day before it. Do this every time; a
+relative date is still a date, and leaving it out is not the same as it being
+absent.
+
+Output dates as YYYY-MM-DD, or YYYY-MM-DDTHH:MM when the email states a
+specific time. Treat the date as missing only when the email gives nothing to
+work from at all.
 
 If you cannot resolve exactly one employee and their manager with confidence,
 return status "CLARIFY", list what is missing, and leave message_to_post empty.
@@ -173,6 +185,9 @@ When status is "CLARIFY":
   example "employee_email", "manager", "meeting_date".
 - message_to_post must be "".
 - Do not populate unresolved people with guesses; use empty strings.
+- meeting, meeting_date and issue must still carry whatever the email stated.
+  Only the people are left empty. CLARIFY means "I could not identify who this
+  is about", never "I gave up on the report".
 
 When status is "OK":
 - missing must be [].

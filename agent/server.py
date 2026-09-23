@@ -25,7 +25,12 @@ from google.genai import types
 from pydantic import BaseModel, Field, ValidationError
 
 from camera_agent.agent import root_agent
-from camera_agent.schemas import IntakeResult, MessageResult, extract_json
+from camera_agent.schemas import (
+    IntakeResult,
+    MessageResult,
+    extract_json,
+    infer_same_day_date,
+)
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -145,7 +150,22 @@ async def invoke(request: InvokeRequest) -> dict:
         text = prompt if attempt == 1 else f"{prompt}\n\n{_REPAIR.format(error=last_error)}"
         try:
             raw_response = await _run_once(text, request_id)
-            result = _validate(mode, extract_json(raw_response))
+            raw = extract_json(raw_response)
+            if mode == "INTAKE" and not str(raw.get("meeting_date") or "").strip():
+                # The model occasionally drops the date when it cannot identify
+                # the people. Recover it before validation, so status and the
+                # gap list are computed from the value we actually have.
+                recovered = infer_same_day_date(
+                    validated_input.raw_text, validated_input.received_at
+                )
+                if recovered:
+                    raw["meeting_date"] = recovered
+                    log.info(
+                        "requestId=%s recovered dropped meeting_date=%s",
+                        request_id,
+                        recovered,
+                    )
+            result = _validate(mode, raw)
         except (ValueError, ValidationError) as exc:
             last_error = str(exc)
             log.warning(

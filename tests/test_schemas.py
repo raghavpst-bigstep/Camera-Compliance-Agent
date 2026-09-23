@@ -174,3 +174,69 @@ def test_clarify_with_everything_resolved_is_respected():
     assert result.status == "CLARIFY"
     assert result.missing == ["not_a_camera_compliance_report"]
     assert result.message_to_post == ""
+
+
+# ---------------------------------------------------------------------------
+# Same-day recovery. Live runs showed the model dropping meeting_date entirely
+# on roughly half of identical requests when the directory was unreadable.
+# ---------------------------------------------------------------------------
+
+RECEIVED = "2026-09-23T09:30:00Z"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Priya had her camera off in today's standup",
+        "camera off during this mornings standup",
+        "no camera this morning's client call",
+        "she was off camera this afternoon",
+        "TODAY she had it off",
+    ],
+)
+def test_same_day_phrasing_recovers_the_date(text):
+    from camera_agent.schemas import infer_same_day_date
+
+    assert infer_same_day_date(text, RECEIVED) == "2026-09-23"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "camera off in yesterday's standup",
+        "camera off during Tuesday's sync",
+        "camera off last week",
+        "no camera in the 3pm review",
+        "",
+    ],
+)
+def test_ambiguous_phrasing_is_left_alone(text):
+    """Guessing these wrong would put the wrong date on an HR record."""
+    from camera_agent.schemas import infer_same_day_date
+
+    assert infer_same_day_date(text, RECEIVED) == ""
+
+
+def test_recovery_yields_a_date_not_the_emails_timestamp():
+    """The meeting happened that day, not at the moment the mail was sent."""
+    from camera_agent.schemas import infer_same_day_date
+
+    recovered = infer_same_day_date("camera off this morning", RECEIVED)
+    assert recovered == "2026-09-23"
+    assert "T" not in recovered
+
+
+def test_recovery_needs_a_usable_received_at():
+    from camera_agent.schemas import infer_same_day_date
+
+    assert infer_same_day_date("camera off today", "") == ""
+    assert infer_same_day_date("camera off today", "not a timestamp") == ""
+
+
+def test_recovered_date_clears_the_gap():
+    """A recovered date must remove meeting_date from `missing`."""
+    result = IntakeResult.model_validate(
+        {**RESOLVED, "meeting_date": "2026-09-23", "missing": ["meeting_date"]}
+    )
+    assert result.status == "OK"
+    assert result.missing == []

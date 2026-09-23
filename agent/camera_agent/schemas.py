@@ -56,6 +56,35 @@ def normalise_date(value: str) -> str:
     return text
 
 
+_SAME_DAY = re.compile(
+    r"\b(today'?s?|this\s+(morning|afternoon|evening)'?s?)\b", re.IGNORECASE
+)
+
+
+def infer_same_day_date(raw_text: str, received_at: str) -> str:
+    """Recover a meeting date the model dropped.
+
+    Only for the one phrasing that cannot mean anything else: if the manager
+    wrote "today" or "this morning", the meeting was on the day their report
+    arrived. Deliberately narrow - "yesterday" and weekday names are left to
+    the model, because guessing them wrong would put the wrong date on an HR
+    record.
+
+    Returns "" when the text gives no same-day cue.
+    """
+    if not _SAME_DAY.search(raw_text or ""):
+        return ""
+
+    # normalise_date passes unparseable input straight through, so the result
+    # has to be proved a real date before it is allowed onto an HR record.
+    candidate = normalise_date(received_at)[:10]
+    try:
+        datetime.strptime(candidate, "%Y-%m-%d")
+    except ValueError:
+        return ""
+    return candidate
+
+
 class Person(BaseModel):
     name: str = ""
     email: str = ""
