@@ -232,7 +232,7 @@ gcloud run deploy camera-agent \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
 GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
 GOOGLE_CLOUD_LOCATION=global,\
-MODEL_ID=gemini-flash-latest,\
+MODEL_ID=gemini-flash,\
 EMPLOYEE_SHEET_ID=<employee sheet id>,\
 EMPLOYEE_SHEET_RANGE=Employees!A:Z"
 
@@ -310,7 +310,7 @@ exercised as soon as the sheet is shared with the service account:
 gcloud run deploy camera-agent --source ./agent --region $REGION \
   --service-account $SA --no-allow-unauthenticated \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
-GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-flash-latest,EMPLOYEE_SHEET_ID=<id>"
+GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-flash,EMPLOYEE_SHEET_ID=<id>"
 
 AGENT_URL=$(gcloud run services describe camera-agent --region $REGION \
   --format='value(status.url)')
@@ -470,9 +470,10 @@ adherence is not theoretical here: live runs on an older Flash dropped
 
 ### Alias or pinned version
 
-The default `gemini-flash-latest` is an auto-updating alias: Vertex swaps it to
-each new Flash release, so a model upgrade needs no commit. Note the spelling —
-the bare `gemini-flash` is the AI Studio form, and this service runs on Vertex.
+The default `gemini-flash` is the canonical auto-updating alias: it points at
+the newest stable Flash release, so a model upgrade needs no commit. The older
+`gemini-flash-latest` suffix form is legacy and can 404 on current API
+versions.
 
 That convenience has a cost worth weighing before this handles real incidents.
 The model decides who a report is about and what the manager is told, and those
