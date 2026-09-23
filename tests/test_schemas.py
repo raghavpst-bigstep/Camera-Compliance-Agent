@@ -69,18 +69,25 @@ def test_half_resolved_ok_is_downgraded(gap, patch):
 
 
 def test_clarify_never_carries_a_message_to_post():
+    """Nothing drafted for an employee may survive an unresolved report."""
     result = IntakeResult.model_validate(
         {"status": "CLARIFY", "message_to_post": "should be dropped"}
     )
     assert result.message_to_post == ""
-    assert result.missing == ["unspecified"]
 
 
-def test_clarify_keeps_a_stated_reason():
+def test_clarify_names_every_real_gap():
+    """An empty result must say what is missing, not just 'unspecified'."""
+    result = IntakeResult.model_validate({"status": "CLARIFY"})
+    assert set(result.missing) == {"employee", "manager", "hr", "meeting_date"}
+
+
+def test_the_models_own_reason_is_kept_alongside_computed_gaps():
     result = IntakeResult.model_validate(
         {"status": "CLARIFY", "missing": ["employee_email"]}
     )
-    assert result.missing == ["employee_email"]
+    assert "employee_email" in result.missing
+    assert "manager" in result.missing
 
 
 def test_message_classification_is_closed_set():
@@ -96,3 +103,74 @@ def test_message_classification_is_closed_set():
 
 def test_sender_role_defaults_to_unknown():
     assert MessageResult.model_validate({"classification": "OTHER"}).sender_role == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Date normalisation. The same email produced "2026-09-23" on one run and
+# "2026-09-23T00:00:00Z" on the next; that column has to be consistent because
+# HR sorts and filters on it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("2026-09-23", "2026-09-23"),
+        ("2026-09-23T00:00:00Z", "2026-09-23"),
+        ("2026-09-23T00:00:00+0000", "2026-09-23"),
+        ("2026-09-23 00:00", "2026-09-23"),
+        ("2026-09-23T10:30", "2026-09-23T10:30"),
+        ("2026-09-23T10:30:00Z", "2026-09-23T10:30"),
+        ("2026-09-23 10:30:00", "2026-09-23T10:30"),
+        ("", ""),
+        ("   ", ""),
+    ],
+)
+def test_dates_are_canonicalised(raw, expected):
+    from camera_agent.schemas import normalise_date
+
+    assert normalise_date(raw) == expected
+
+
+def test_midnight_is_treated_as_no_time_given():
+    """Nobody holds a standup at midnight; it means the model invented a time."""
+    from camera_agent.schemas import normalise_date
+
+    assert "T" not in normalise_date("2026-09-23T00:00:00Z")
+
+
+def test_unparseable_dates_survive_rather_than_vanish():
+    """A human still needs to see what the manager actually wrote."""
+    from camera_agent.schemas import normalise_date
+
+    assert normalise_date("last Tuesday") == "last Tuesday"
+
+
+def test_date_is_normalised_on_the_way_through_the_model():
+    result = IntakeResult.model_validate({**RESOLVED, "meeting_date": "2026-09-23T00:00:00Z"})
+    assert result.meeting_date == "2026-09-23"
+    assert result.status == "OK"
+
+
+def test_gaps_are_recomputed_not_taken_on_trust():
+    """The model's own `missing` list varies run to run for identical input."""
+    understated = {
+        "status": "CLARIFY",
+        "employee": {"name": "", "email": ""},
+        "manager": {"name": "", "email": ""},
+        "hr": {"name": "", "email": ""},
+        "meeting_date": "",
+        "missing": ["employee_email"],
+    }
+    result = IntakeResult.model_validate(understated)
+    assert set(result.missing) >= {"employee", "manager", "hr", "meeting_date"}
+
+
+def test_clarify_with_everything_resolved_is_respected():
+    """e.g. the mail was not a compliance report at all."""
+    result = IntakeResult.model_validate(
+        {**RESOLVED, "status": "CLARIFY", "missing": ["not_a_camera_compliance_report"]}
+    )
+    assert result.status == "CLARIFY"
+    assert result.missing == ["not_a_camera_compliance_report"]
+    assert result.message_to_post == ""
