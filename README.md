@@ -232,7 +232,7 @@ gcloud run deploy camera-agent \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
 GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
 GOOGLE_CLOUD_LOCATION=global,\
-MODEL_ID=gemini-2.5-flash,\
+MODEL_ID=gemini-3.8-flash,\
 EMPLOYEE_SHEET_ID=<employee sheet id>,\
 EMPLOYEE_SHEET_RANGE=Employees!A:Z"
 
@@ -310,7 +310,7 @@ exercised as soon as the sheet is shared with the service account:
 gcloud run deploy camera-agent --source ./agent --region $REGION \
   --service-account $SA --no-allow-unauthenticated \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
-GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-2.5-flash,EMPLOYEE_SHEET_ID=<id>"
+GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-3.8-flash,EMPLOYEE_SHEET_ID=<id>"
 
 AGENT_URL=$(gcloud run services describe camera-agent --region $REGION \
   --format='value(status.url)')
@@ -452,6 +452,34 @@ They cover the places where a bug would reach a real person:
 | `test_roles.py` | who counts as employee, manager and HR |
 | `test_audit.py` | the audit row stays aligned with its header, and screenshots are recorded as a flag rather than stored |
 | `test_routes.py` | every Pub/Sub and Scheduler endpoint is served |
+
+## Choosing the model
+
+`MODEL_ID` is an environment variable, so changing model is a redeploy flag,
+never a code change:
+
+```bash
+gcloud run services update camera-agent --region $REGION \
+  --update-env-vars MODEL_ID=<model>
+```
+
+The default is the current Flash model. **Flash, not Flash-Lite** — this agent
+calls a tool and has to hold to a strict JSON contract, and the Lite tier
+trades instruction adherence for cost. That adherence is not theoretical here:
+live runs on an older Flash showed the model dropping `meeting_date` on half of
+identical requests.
+
+A wrong model ID fails loudly and immediately, with Vertex naming the model it
+could not find, so trying one costs about thirty seconds. To see what the
+project can actually reach:
+
+```bash
+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/google/models" \
+  | jq -r '.publisherModels[].name' | grep -i flash
+```
+
+Model Garden in the console lists the same set.
 
 ## Design notes
 
