@@ -232,7 +232,7 @@ gcloud run deploy camera-agent \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
 GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
 GOOGLE_CLOUD_LOCATION=global,\
-MODEL_ID=gemini-2.5-flash,\
+MODEL_ID=gemini-flash-latest,\
 EMPLOYEE_SHEET_ID=<employee sheet id>,\
 EMPLOYEE_SHEET_RANGE=Employees!A:Z"
 
@@ -310,7 +310,7 @@ exercised as soon as the sheet is shared with the service account:
 gcloud run deploy camera-agent --source ./agent --region $REGION \
   --service-account $SA --no-allow-unauthenticated \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
-GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-2.5-flash,EMPLOYEE_SHEET_ID=<id>"
+GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-flash-latest,EMPLOYEE_SHEET_ID=<id>"
 
 AGENT_URL=$(gcloud run services describe camera-agent --region $REGION \
   --format='value(status.url)')
@@ -470,20 +470,25 @@ adherence is not theoretical here: live runs on an older Flash dropped
 
 ### Alias or pinned version
 
-### Vertex needs an explicit version, not a short alias
+### Which model IDs Vertex actually accepts
 
-This service runs on Vertex (`GOOGLE_GENAI_USE_VERTEXAI=TRUE`), which requires
-a full model ID. The short developer aliases belong to AI Studio and the
-`google-genai` API-key path, and they fail here. Verified, not assumed:
+Vertex and AI Studio do not use the same names, and the difference is not
+guessable. Measured against this project at `locations/global`:
 
-```
-MODEL_ID=gemini-flash
--> 404 NOT_FOUND: Publisher model
-   projects/<project>/locations/global/publishers/google/models/gemini-flash
-   was not found or your project does not have access to it
-```
+| MODEL_ID | Result |
+|---|---|
+| `gemini-flash-latest` | works — auto-updating alias |
+| `gemini-flash` | **404** — AI Studio form, not Vertex |
+| `gemini-3.8-flash` | works — latest pinned version |
+| `gemini-3-8-flash` | **404** — the dash form does not exist |
+| `gemini-3.5-flash`, `gemini-2.5-flash` | work |
 
-So the default is a version string. Changing it is an env var, never a commit:
+`scripts/try-models.sh` reruns that probe. It calls each candidate directly and
+prints which return 200, so a model question is answered in seconds instead of
+by a redeploy. Add new candidates to the list as Google ships them.
+
+The default is `gemini-flash-latest`. Changing it is an env var, never a
+commit:
 
 ```bash
 gcloud run services update camera-agent --region $REGION \
