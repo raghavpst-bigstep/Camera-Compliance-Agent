@@ -232,7 +232,7 @@ gcloud run deploy camera-agent \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
 GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
 GOOGLE_CLOUD_LOCATION=global,\
-MODEL_ID=gemini-flash,\
+MODEL_ID=gemini-2.5-flash,\
 EMPLOYEE_SHEET_ID=<employee sheet id>,\
 EMPLOYEE_SHEET_RANGE=Employees!A:Z"
 
@@ -310,7 +310,7 @@ exercised as soon as the sheet is shared with the service account:
 gcloud run deploy camera-agent --source ./agent --region $REGION \
   --service-account $SA --no-allow-unauthenticated \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
-GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-flash,EMPLOYEE_SHEET_ID=<id>"
+GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-2.5-flash,EMPLOYEE_SHEET_ID=<id>"
 
 AGENT_URL=$(gcloud run services describe camera-agent --region $REGION \
   --format='value(status.url)')
@@ -470,10 +470,34 @@ adherence is not theoretical here: live runs on an older Flash dropped
 
 ### Alias or pinned version
 
-The default `gemini-flash` is the canonical auto-updating alias: it points at
-the newest stable Flash release, so a model upgrade needs no commit. The older
-`gemini-flash-latest` suffix form is legacy and can 404 on current API
-versions.
+### Vertex needs an explicit version, not a short alias
+
+This service runs on Vertex (`GOOGLE_GENAI_USE_VERTEXAI=TRUE`), which requires
+a full model ID. The short developer aliases belong to AI Studio and the
+`google-genai` API-key path, and they fail here. Verified, not assumed:
+
+```
+MODEL_ID=gemini-flash
+-> 404 NOT_FOUND: Publisher model
+   projects/<project>/locations/global/publishers/google/models/gemini-flash
+   was not found or your project does not have access to it
+```
+
+So the default is a version string. Changing it is an env var, never a commit:
+
+```bash
+gcloud run services update camera-agent --region $REGION \
+  --update-env-vars MODEL_ID=<model>
+```
+
+To find the IDs the project can actually reach, rather than guessing:
+
+```bash
+gcloud ai model-garden models list --model-filter=gemini | grep -i flash
+```
+
+If a listed model still 404s, it may not be published to the `global`
+endpoint - retry with `GOOGLE_CLOUD_LOCATION=us-central1`.
 
 That convenience has a cost worth weighing before this handles real incidents.
 The model decides who a report is about and what the manager is told, and those
