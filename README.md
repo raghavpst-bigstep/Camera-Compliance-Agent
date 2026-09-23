@@ -232,7 +232,7 @@ gcloud run deploy camera-agent \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
 GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
 GOOGLE_CLOUD_LOCATION=global,\
-MODEL_ID=gemini-3.8-flash,\
+MODEL_ID=gemini-flash-latest,\
 EMPLOYEE_SHEET_ID=<employee sheet id>,\
 EMPLOYEE_SHEET_RANGE=Employees!A:Z"
 
@@ -310,7 +310,7 @@ exercised as soon as the sheet is shared with the service account:
 gcloud run deploy camera-agent --source ./agent --region $REGION \
   --service-account $SA --no-allow-unauthenticated \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=TRUE,\
-GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-3.8-flash,EMPLOYEE_SHEET_ID=<id>"
+GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-flash-latest,EMPLOYEE_SHEET_ID=<id>"
 
 AGENT_URL=$(gcloud run services describe camera-agent --region $REGION \
   --format='value(status.url)')
@@ -463,15 +463,36 @@ gcloud run services update camera-agent --region $REGION \
   --update-env-vars MODEL_ID=<model>
 ```
 
-The default is the current Flash model. **Flash, not Flash-Lite** — this agent
-calls a tool and has to hold to a strict JSON contract, and the Lite tier
-trades instruction adherence for cost. That adherence is not theoretical here:
-live runs on an older Flash showed the model dropping `meeting_date` on half of
-identical requests.
+**Flash, not Flash-Lite.** This agent calls a tool and has to hold to a strict
+JSON contract, and the Lite tier trades instruction adherence for cost. That
+adherence is not theoretical here: live runs on an older Flash dropped
+`meeting_date` on half of identical requests.
+
+### Alias or pinned version
+
+The default `gemini-flash-latest` is an auto-updating alias: Vertex swaps it to
+each new Flash release, so a model upgrade needs no commit. Note the spelling —
+the bare `gemini-flash` is the AI Studio form, and this service runs on Vertex.
+
+That convenience has a cost worth weighing before this handles real incidents.
+The model decides who a report is about and what the manager is told, and those
+decisions land in an HR audit record. An alias means that behaviour can change
+under you. Google gives two weeks' notice by email before a breaking change to
+what an alias points at, which is real mitigation but not the same as control,
+and an audit row cannot say which model produced it.
+
+So: **alias while building, pinned once live.**
+
+```bash
+gcloud run services update camera-agent --region $REGION \
+  --update-env-vars MODEL_ID=gemini-3.8-flash
+```
+
+Pinning is also required if you ever move to Provisioned Throughput, which does
+not accept aliases.
 
 A wrong model ID fails loudly and immediately, with Vertex naming the model it
-could not find, so trying one costs about thirty seconds. To see what the
-project can actually reach:
+could not find. To see what the project can actually reach:
 
 ```bash
 curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \

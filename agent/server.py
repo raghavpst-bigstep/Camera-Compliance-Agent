@@ -84,7 +84,7 @@ async def lifespan(_: FastAPI):
         agent=root_agent,
         session_service=session_service,
     )
-    log.info("runner ready for model=%s", os.environ.get("MODEL_ID", "gemini-3.8-flash"))
+    log.info("runner ready for model=%s", os.environ.get("MODEL_ID", "gemini-flash-latest"))
     yield
 
 

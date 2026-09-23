@@ -14,10 +14,16 @@ from google.adk.agents import LlmAgent
 from .directory import lookup_directory
 from .instruction import INSTRUCTION
 
-# Flash, not Flash-Lite: this agent calls a tool and must hold to a strict
-# JSON contract, and the Lite tier trades instruction adherence for cost.
-# Overridable at deploy time, so moving to a newer model needs no code change.
-MODEL_ID = os.environ.get("MODEL_ID", "gemini-3.8-flash")
+# The auto-updating Flash alias, so a new Flash release needs no commit.
+# Note the Vertex spelling: the bare "gemini-flash" is the AI Studio form, and
+# this service runs with GOOGLE_GENAI_USE_VERTEXAI=TRUE.
+#
+# Flash, not Flash-Lite: this agent calls a tool and must hold to a strict JSON
+# contract, and the Lite tier trades instruction adherence for cost.
+#
+# Pin to an exact version (e.g. gemini-3.8-flash) before this handles real
+# incidents - see "Choosing the model" in the README for why.
+MODEL_ID = os.environ.get("MODEL_ID", "gemini-flash-latest")
 
 root_agent = LlmAgent(
     name="camera_compliance",
