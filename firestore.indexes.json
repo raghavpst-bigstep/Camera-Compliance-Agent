@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "incidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "due_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "incidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employee_email", "order": "ASCENDING" },
+        { "fieldPath": "state", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "incidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "audit_written", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

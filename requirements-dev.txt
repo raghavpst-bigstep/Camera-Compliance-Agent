@@ -1,0 +1,5 @@
+# Tests stub every Google client, so only these are needed to run them.
+pytest>=8.0.0
+pydantic>=2.7.0
+fastapi>=0.115.0
+requests>=2.32.0
