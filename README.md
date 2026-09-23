@@ -151,11 +151,15 @@ gcloud iam service-accounts describe $SA --format='value(uniqueId)'
 
 A Workspace super-admin goes to **admin.google.com → Security → Access and data
 control → API controls → Domain-wide delegation → Add new**, pastes that client
-ID, and authorises one scope:
+ID, and authorises two scopes:
 
 ```
-https://www.googleapis.com/auth/gmail.modify
+https://www.googleapis.com/auth/gmail.readonly
+https://www.googleapis.com/auth/gmail.send
 ```
+
+Deliberately narrower than `gmail.modify`: the agent reads reports and sends
+clarification replies, and cannot modify, label or delete anything.
 
 **b) Allow Chat apps to create spaces and add members.** Chat runs as the app
 itself, not as a person, which is what gives each agent its own name and avatar.
@@ -486,7 +490,7 @@ delegation, and the approved scope list is one line rather than six.
 | Symptom | Look at |
 |---|---|
 | Email arrives, nothing happens | Is the watch armed? `POST /admin/start-watch`. Then check the `mail-to-orch` subscription for unacked messages |
-| 401/403 on Gmail calls | Domain-wide delegation (step 3a) — the `gmail.modify` scope must be authorised for this client ID |
+| 401/403 on Gmail calls | Domain-wide delegation (step 3a) — both Gmail scopes must be authorised for this client ID |
 | 403 on `spaces.create` | The Workspace setting in step 3b is off, or the Chat app in step 3b is not Live |
 | `token exchange failed` in logs | The service account is missing `roles/iam.serviceAccountTokenCreator` on itself |
 | Space is created but replies never arrive | The Workspace Events subscription failed; check the logs at incident creation and confirm the `chat-events` topic grants publish to `chat-api-push@system.gserviceaccount.com` |

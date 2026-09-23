@@ -79,8 +79,13 @@ LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 # Gmail has no app-authentication path: reading a person's mailbox always means
 # acting as that person, so it needs domain-wide delegation. These are the only
 # scopes a Workspace admin has to approve.
+#
+# Deliberately narrower than gmail.modify, which would also permit modifying,
+# labelling and trashing mail. The agent only ever reads reports and sends
+# clarification replies, so it asks for exactly those two.
 DELEGATED_SCOPES: tuple[str, ...] = (
-    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
 )
 
 # Chat, by contrast, runs as the app itself. The service account IS the Chat
